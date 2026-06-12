@@ -1,0 +1,46 @@
+services:
+  headscale:
+    image: docker.io/headscale/headscale:0.28.0
+    restart: unless-stopped
+    container_name: headscale
+    labels:
+      - "me.tale.headplane.target=headscale"
+    read_only: true
+    tmpfs:
+      - /var/run/headscale
+    expose:
+      - "8080"
+      - "9090"
+    networks:
+      - caddy
+      - default
+    volumes:
+      # Please set <HEADSCALE_PATH> to the absolute path
+      # of the previously created headscale directory.
+      - "$PWD/config:/etc/headscale:ro"
+      - "$PWD/lib:/var/lib/headscale"
+    command: serve
+    healthcheck:
+        test: ["CMD", "headscale", "health"]
+
+  headplane:
+    image: ghcr.io/tale/headplane:0.7.0-beta.4
+    container_name: headplane
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      - caddy
+      - default
+    volumes:
+      - "$PWD/config/headplane-config.yaml:/etc/headplane/config.yaml"
+      - "$PWD/headplane-data:/var/lib/headplane"
+      - "$PWD/config:/etc/headscale"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    depends_on:
+      headscale:
+        condition: service_healthy
+
+networks:
+  caddy:
+    external: true
